@@ -1,36 +1,26 @@
-#Libraries
-from fastapi import FastAPI, Request    
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api import main_router
+from src.core.config import settings
+from src.api.router import api_router
+from src.db.init_db import init_db
 
-from typing import Callable
-import time
-
-#Start
-app = FastAPI()
-app.include_router(main_router)
+app = FastAPI(title=settings.APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] #РАЗРЕШЕНИЕ НА ЗАПРОС С ЛЮБОГО САЙТА
-) #ТОЧНОЕ СОВПАДЕНИЕ URL
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.middleware("http")
-async def my_middleware(request: Request, call_next: Callable):
-    start = time.perf_counter()
-    response = await call_next(request)
-    end = time.perf_counter() - start
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
-    ip_address = request.client.host
-    response.headers["ip_address_cliend"] = ip_address
-    response.headers["request_processing_time"] = f"{end}"
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
-    return response
-
-
-if __name__ == "__main__":
-    import uvicorn 
-    uvicorn.run("src.main:app", reload=True) #if Docker [host="0.0.0.0"]
-
-
+app.include_router(api_router)
