@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from enum import Enum as En
 
-from ..database import Base
+from src.db.base import Base
 
 
 class ReviewDecision(str, En):

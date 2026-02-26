@@ -7,7 +7,7 @@ try:
 except Exception:
     from sqlalchemy import JSON as JSONType  # type: ignore
 
-from ..database import Base
+from src.db.base import Base
 
 
 class OperationLog(Base):
