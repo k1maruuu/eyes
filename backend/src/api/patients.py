@@ -2,11 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from src.db.session import get_db
-from src.schemas.patient import PatientCreate, PatientUpdate, PatientOut
+from src.schemas.patient import PatientCreate, PatientUpdate, PatientOut, EmiassyncIn
 from src.crud.patients import patient_crud
 from src.services.deps import get_current_user, require_roles
 from src.models.patient import PatientStatus, Patient
 from src.models.user import User
+from src.crud.checklists import patient_checklist_crud
+from src.schemas.patient_checklist import (
+    PatientChecklistOut,
+    PatientChecklistItemOut,
+    PatientChecklistItemUpdate,
+    PatientChecklistProgressOut,
+)
+from src.services.checklist_service import (
+    generate_checklist_for_patient,
+    update_patient_checklist_item,
+    get_checklist_progress,
+)
+
+from datetime import datetime
 
 router = APIRouter()
 
@@ -83,3 +97,110 @@ def update_patient(
         data = data.model_copy(update={"organization_id": obj.organization_id})
 
     return patient_crud.update(db, obj, data)
+
+
+@router.post("/{patient_id}/emias-sync")
+def emias_sync(patient_id: int, data: EmiassyncIn,
+               db: Session = Depends(get_db),
+               user=Depends(get_current_user)):
+    patient = patient_crud.get(db, id=patient_id)
+    _ensure_patient_scope(user, patient)
+
+    # заглушка
+    patient.fhir_id = f"mock-{patient_id}"
+    patient.fhir_resource_json = {
+        "resourceType": "Patient",
+        "syncedAt": datetime.utcnow().isoformat(),
+        "polis": data.polis,
+        "snils": data.snils,
+    }
+    db.add(patient); db.commit(); db.refresh(patient)
+    return {"ok": True, "fhir_id": patient.fhir_id}
+
+
+# --- (B) Generate checklist for patient ---
+@router.post("/{patient_id}/checklist/generate", response_model=PatientChecklistOut)
+def generate_patient_checklist(
+    patient_id: int,
+    template_id: int | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_roles("admin", "feldsher")),
+):
+    patient = patient_crud.get(db, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    _ensure_patient_scope(user, patient)
+
+    checklist = generate_checklist_for_patient(db, patient, template_id=template_id)
+    # подгружаем items (если не подгрузились)
+    checklist.items
+    return checklist
+
+
+# --- Get latest checklist for patient ---
+@router.get("/{patient_id}/checklist", response_model=PatientChecklistOut)
+def get_latest_patient_checklist(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_roles("admin", "feldsher", "surgeon")),
+):
+    patient = patient_crud.get(db, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    _ensure_patient_scope(user, patient)
+
+    checklist = patient_checklist_crud.get_latest_for_patient(db, patient_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist not found")
+    checklist.items
+    return checklist
+
+
+# --- (C) Update checklist item ---
+@router.patch("/{patient_id}/checklist/items/{item_id}", response_model=PatientChecklistItemOut)
+def patch_patient_checklist_item(
+    patient_id: int,
+    item_id: int,
+    data: PatientChecklistItemUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_roles("admin", "feldsher")),
+):
+    patient = patient_crud.get(db, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    _ensure_patient_scope(user, patient)
+
+    checklist = patient_checklist_crud.get_latest_for_patient(db, patient_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist not found")
+
+    updated_item = update_patient_checklist_item(
+        db=db,
+        patient=patient,
+        checklist=checklist,
+        item_id=item_id,
+        patch=data,
+    )
+    return updated_item
+
+
+@router.get("/{patient_id}/checklist/progress", response_model=PatientChecklistProgressOut)
+def get_patient_checklist_progress(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_roles("admin", "feldsher", "surgeon")),
+):
+    patient = patient_crud.get(db, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    _ensure_patient_scope(user, patient)
+
+    checklist = patient_checklist_crud.get_latest_for_patient(db, patient_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist not found")
+
+    return get_checklist_progress(db, checklist)

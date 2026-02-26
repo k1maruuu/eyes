@@ -6,6 +6,10 @@ from src.schemas.common import ORMBase
 from src.models.user import UserRole
 from src.core.validators import normalize_phone
 
+class EsiaLoginIn(BaseModel):
+    esia_code: str
+    email: str  # для заглушки (в реале приходит из ESIA)
+
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=255)
     email: EmailStr

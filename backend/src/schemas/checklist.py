@@ -67,5 +67,21 @@ class ChecklistItemTemplateOut(ORMBase):
     updated_at: datetime
 
 
+class ChecklistItemTemplateCreateInline(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    order_index: int = 0
+    requires_file: bool = False
+    requires_value: bool = False
+    value_hint: Optional[str] = Field(default=None, max_length=255)
+
+
+class ChecklistTemplateCreateWithItems(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    operation_type: str = Field(min_length=1, max_length=128)
+    version: int = Field(default=1, ge=1)
+    is_active: bool = True
+    items: List[ChecklistItemTemplateCreateInline] = Field(default_factory=list)
+
 # важно для ссылок в ChecklistTemplateOut.items
 ChecklistTemplateOut.model_rebuild()

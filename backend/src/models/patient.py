@@ -53,3 +53,5 @@ class Patient(Base):
     files = relationship("FileAsset", back_populates="patient", cascade="all,delete", passive_deletes=True)
     reviews = relationship("Review", back_populates="patient", cascade="all,delete", passive_deletes=True)
     comments = relationship("Comment", back_populates="patient", cascade="all,delete", passive_deletes=True)
+
+    diagnosis_icd10 = Column(String(16), nullable=True, index=True)

@@ -26,6 +26,9 @@ class PatientCreate(BaseModel):
 
     status: PatientStatus = PatientStatus.NEW
 
+    diagnosis_text: Optional[str] = None
+    diagnosis_icd10: Optional[str] = Field(default=None, max_length=16)
+
     @field_validator("snils")
     @classmethod
     def _snils(cls, v):
@@ -52,6 +55,9 @@ class PatientUpdate(BaseModel):
     fhir_id: Optional[str] = Field(default=None, max_length=128)
     fhir_resource_json: Optional[Dict[str, Any]] = None
     external_system_id: Optional[str] = Field(default=None, max_length=128)
+
+    diagnosis_text: Optional[str] = None
+    diagnosis_icd10: Optional[str] = Field(default=None, max_length=16)
 
     @field_validator("snils")
     @classmethod
@@ -83,3 +89,10 @@ class PatientOut(ORMBase):
 
     created_at: datetime
     updated_at: datetime
+
+    diagnosis_text: Optional[str] = None
+    diagnosis_icd10: Optional[str] = None
+
+class EmiassyncIn(BaseModel):
+    polis: str | None = None
+    snils: str | None = None

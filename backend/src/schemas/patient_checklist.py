@@ -54,5 +54,10 @@ class PatientChecklistItemOut(ORMBase):
     created_at: datetime
     updated_at: datetime
 
+class PatientChecklistProgressOut(BaseModel):
+    done: int
+    total: int
+    percent: int
+
 
 PatientChecklistOut.model_rebuild()

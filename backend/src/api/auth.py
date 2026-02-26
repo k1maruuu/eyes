@@ -42,3 +42,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     token = create_access_token({"sub": user.email, "role": user.role.value})
     return TokenOut(access_token=token)
+
+# Заглушка для ESIA gosuslugi
+# @router.post("/esia")
+# def esia_login(data: EsiaLoginIn, db: Session = Depends(get_db)):
+#     user = user_crud.get_by_email(db, email=data.email)
+#     if not user:
+#         raise HTTPException(401, "Unknown user")
+#     token = create_access_token({"sub": str(user.id), "role": user.role.value})
+#     return {"access_token": token, "token_type": "bearer"}
