@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from src.db.session import get_db
@@ -11,42 +12,32 @@ from src.models.user import User
 
 router = APIRouter()
 
-
 @router.post("/login", response_model=TokenOut)
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).one_or_none()
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # OAuth2PasswordRequestForm использует поле username (туда кладём email)
+    email = form_data.username
+    password = form_data.password
 
-    # Не раскрываем, существует ли email (защита от user enumeration)
+    user = db.query(User).filter(User.email == email).one_or_none()
     if not user:
-        # Можно добавить небольшую искусственную задержку, но это опционально
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     now = datetime.now(timezone.utc)
 
-    # 1) Проверка блокировки
-    if getattr(user, "locked_until", None) and user.locked_until > now:
-        # не говорим "заблокирован", просто запрещаем
+    if user.locked_until and user.locked_until > now:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many attempts. Try later.")
 
-    # 2) Проверка пароля
     if not verify_password(password, user.hashed_password):
         user.login_attempts = (user.login_attempts or 0) + 1
-
-        # Если превышен лимит — блокируем на N минут
         if user.login_attempts >= settings.LOGIN_MAX_ATTEMPTS:
             user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCK_MINUTES)
-            user.login_attempts = 0  # можно обнулить, чтобы считать по окнам блокировки
-
-        db.add(user)
+            user.login_attempts = 0
         db.commit()
-
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    # 3) Успешный логин: сброс счётчика и блокировки
     user.login_attempts = 0
     user.locked_until = None
     user.last_login_at = now
-    db.add(user)
     db.commit()
 
     token = create_access_token({"sub": user.email, "role": user.role.value})

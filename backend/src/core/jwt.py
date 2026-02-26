@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
-from jose import JWTError, jwt
+from jose import jwt, JWTError
+
 from src.core.config import settings
 from src.schemas.token import TokenData
 
@@ -12,10 +13,10 @@ def create_access_token(data: dict) -> str:
 def verify_token(token: str) -> TokenData | None:
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALG])
-        email: str | None = payload.get("sub")
+        email = payload.get("sub")
         if not email:
             return None
-        role: str | None = payload.get("role")
+        role = payload.get("role")
         return TokenData(email=email, role=role)
     except JWTError:
         return None
