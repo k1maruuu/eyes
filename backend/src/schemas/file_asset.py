@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
@@ -35,3 +36,17 @@ class CommentOut(ORMBase):
     author_user_id: Optional[int] = None
     text: str
     created_at: datetime
+
+
+class FileAssetOut(BaseModel):
+    id: int
+    patient_id: int
+    checklist_item_id: Optional[int] = None
+    original_name: str
+    content_type: str
+    size_bytes: int
+    storage_path: str
+    kind: Optional[str] = None
+
+    class Config:
+        from_attributes = True

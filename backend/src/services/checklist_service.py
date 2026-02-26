@@ -20,6 +20,8 @@ from src.schemas.patient_checklist import (
     PatientChecklistItemUpdate,
 )
 from src.crud.checklists import patient_checklist_item_crud
+from src.models.checklist import ChecklistItemTemplate
+from src.models.file_asset import FileAsset
 
 
 def _utcnow() -> datetime:
@@ -149,6 +151,44 @@ def update_patient_checklist_item(
             data["done_at"] = _utcnow()
         if data["done"] is False:
             data["done_at"] = None
+
+    tpl = db.query(ChecklistItemTemplate).filter(ChecklistItemTemplate.id == item.item_template_id).one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=500, detail="Checklist item template missing")
+
+    data = patch.model_dump(exclude_unset=True)
+
+    # Если пытаемся поставить done=True — проверяем требования
+    if data.get("done") is True:
+        if tpl.requires_value and not (data.get("value_text") or item.value_text):
+            raise HTTPException(status_code=400, detail="This item requires value_text before marking done")
+
+        if tpl.requires_file:
+            # ищем хотя бы один файл, привязанный к этому пункту
+            has_file = (
+                db.query(FileAsset)
+                .filter(FileAsset.checklist_item_id == item.id)
+                .first()
+                is not None
+            )
+            if not has_file:
+                raise HTTPException(status_code=400, detail="This item requires file upload before marking done")
+            
+        if getattr(tpl, "kind", None) == "BLOOD_LABS":
+            panel = (
+                db.query(BloodLabPanel)
+                .filter(BloodLabPanel.patient_id == item.patient_id)
+                .order_by(BloodLabPanel.id.desc())
+                .first()
+            )
+            if not panel:
+                raise HTTPException(status_code=400, detail="Blood labs are required before marking done")
+
+            # минимальная мед-валидация (чтобы не вводили мусор)
+            if panel.glucose_unit == "mmol/L" and not (0.5 <= panel.glucose_value <= 40):
+                raise HTTPException(status_code=400, detail="Glucose value looks out of range")
+            if panel.hemoglobin_unit == "g/L" and not (30 <= panel.hemoglobin_value <= 250):
+                raise HTTPException(status_code=400, detail="Hemoglobin value looks out of range")
 
     updated = patient_checklist_item_crud.update(db, item, PatientChecklistItemUpdate(**data))
 

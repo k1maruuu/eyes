@@ -31,3 +31,6 @@ class FileAsset(Base):
     patient = relationship("Patient", back_populates="files")
     checklist_item = relationship("PatientChecklistItem", back_populates="files")
     uploaded_by = relationship("User", back_populates="uploaded_files")
+
+    checklist_item_id = Column(Integer, ForeignKey("patient_checklist_items.id"), nullable=True, index=True)
+    kind = Column(String(64), nullable=True)  # например "ECG", "FLUORO", "THERAPIST", "BAKPOSEV"   
