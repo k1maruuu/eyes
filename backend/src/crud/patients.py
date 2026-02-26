@@ -10,4 +10,12 @@ class CRUDPatient(CRUDBase[Patient, PatientCreate, PatientUpdate]):
             q = q.filter(Patient.status == status)
         return q.order_by(Patient.updated_at.desc()).offset(offset).limit(limit).all()
 
+    def list_for_org(self, db: Session, org_id: int | None, status=None, limit: int = 50, offset: int = 0):
+        if org_id is None:
+            return []
+        q = db.query(Patient).filter(Patient.organization_id == org_id)
+        if status is not None:
+            q = q.filter(Patient.status == status)
+        return q.order_by(Patient.updated_at.desc()).offset(offset).limit(limit).all()
+
 patient_crud = CRUDPatient(Patient)

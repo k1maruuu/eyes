@@ -46,3 +46,5 @@ class User(Base):
     comments = relationship("Comment", back_populates="author", cascade="all,delete", passive_deletes=True)
     uploaded_files = relationship("FileAsset", back_populates="uploaded_by", cascade="all,delete", passive_deletes=True)
     ops = relationship("OperationLog", back_populates="user", cascade="all,delete", passive_deletes=True)
+
+    locked_until = Column(DateTime(timezone=True), nullable=True)

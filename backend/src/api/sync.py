@@ -18,7 +18,7 @@ def sync_batch(
     results = []
     applied_ids = []
     for op in batch.ops:
-        r = apply_op(db, op, user_id=user.id)
+        r = apply_op(db, op, user=user)  # <-- здесь
         results.append(r)
         if r.status == "applied":
             applied_ids.append(r.op_id)
