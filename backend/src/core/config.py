@@ -6,13 +6,14 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Oculus Feldsher API"
     ENV: str = "dev"
-
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
-    DATABASE_URL: str = "sqlite:///./oculus.db"
 
-    JWT_SECRET: str = "46RNH65hFHH6SD8g67GHD89gm3684rgDY80w7ry2098Y2"
+    DATABASE_URL: str
+    DB_SSLMODE: str = "prefer"   # prefer | require | verify-full
+
+    JWT_SECRET: str
     JWT_ALG: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 
     @property
     def cors_origins_list(self) -> List[str]:
